@@ -14,11 +14,15 @@ pub enum Error {
     #[error("Cannot perform this action on an active session")]
     AlreadyActive,
 
+    /// Generic error with custom message
+    #[error("{0}")]
+    Other(String),
+
     #[error(transparent)]
     Serenity(#[from] serenity::Error),
 
     #[error(transparent)]
-    Database(#[from] spoticord_database::error::DatabaseError),
+    Storage(#[from] anyhow::Error),
 
     #[error(transparent)]
     JoinError(#[from] songbird::error::JoinError),

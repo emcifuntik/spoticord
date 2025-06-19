@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 spoticord_config = { path = "../spoticord_config" }
-spoticord_database = { path = "../spoticord_database" }
+spoticord_storage = { path = "../spoticord_storage" }
 spoticord_player = { path = "../spoticord_player" }
 spoticord_utils = { path = "../spoticord_utils" }
 
@@ -20,3 +20,7 @@ log = "0.4.22"
 base64 = "0.22.1"
 poise = "0.6.1"
 thiserror = "2.0.3"
+rspotify = { version = "0.13.3", default-features = false, features = [
+    "client-reqwest",
+    "reqwest-rustls-tls",
+] }

@@ -6,7 +6,6 @@ use poise::CreateReply;
 use serenity::all::{
     Channel, ChannelId, CreateEmbed, CreateEmbedAuthor, CreateEmbedFooter, UserId,
 };
-use spoticord_database::error::DatabaseError;
 use spoticord_session::manager::SessionQuery;
 use spoticord_utils::discord::Colors;
 
@@ -94,21 +93,15 @@ pub async fn join(ctx: Context<'_>) -> Result<()> {
         .await?;
 
         return Ok(());
-    }
-
-    // Check whether the user has linked their Spotify account
-    if let Err(DatabaseError::NotFound) = manager
-        .database()
-        .get_account(ctx.author().id.to_string())
-        .await
-    {
+    }    // Check whether the bot has a linked Spotify account
+    if manager.storage().get_spotify_credentials().await?.is_none() {
         ctx.send(
             CreateReply::default()
                 .embed(
                     CreateEmbed::new()
                         .title("No Spotify account")
                         .description(
-                            "You need to link your Spotify account to Spoticord before being able to use it.\nUse the `/link` command to link your account.",
+                            "The bot doesn't have a Spotify account linked yet.\nAn administrator needs to use the `/link` command to set up Spotify integration.",
                         )
                         .color(Colors::Error),
                 )

@@ -4,7 +4,7 @@ use anyhow::{anyhow, Result};
 use log::{debug, info};
 use poise::{serenity_prelude, Framework, FrameworkContext, FrameworkOptions};
 use serenity::all::{ActivityData, FullEvent, Ready, ShardManager};
-use spoticord_database::Database;
+use spoticord_storage::Storage;
 use spoticord_session::manager::SessionManager;
 
 use crate::commands;
@@ -18,8 +18,7 @@ pub type FrameworkError<'a> = poise::FrameworkError<'a, Data, anyhow::Error>;
 type Data = SessionManager;
 
 pub fn framework_opts() -> FrameworkOptions<Data, anyhow::Error> {
-    poise::FrameworkOptions {
-        commands: vec![
+    poise::FrameworkOptions {        commands: vec![
             #[cfg(debug_assertions)]
             commands::debug::ping(),
             #[cfg(debug_assertions)]
@@ -34,6 +33,9 @@ pub fn framework_opts() -> FrameworkOptions<Data, anyhow::Error> {
             commands::music::stop(),
             commands::music::playing(),
             commands::music::lyrics(),
+            commands::music::play(),
+            commands::music::clear(),
+            commands::music::skip(),
         ],
         event_handler: |ctx, event, framework, data| {
             Box::pin(event_handler(ctx, event, framework, data))
@@ -46,7 +48,7 @@ pub async fn setup(
     ctx: &serenity_prelude::Context,
     ready: &Ready,
     framework: &Framework<Data, anyhow::Error>,
-    database: Database,
+    storage: Storage,
 ) -> Result<Data> {
     info!("Successfully logged in as {}", ready.user.name);
 
@@ -59,16 +61,14 @@ pub async fn setup(
     .await?;
 
     #[cfg(not(debug_assertions))]
-    poise::builtins::register_globally(ctx, &framework.options().commands).await?;
-
-    let songbird = songbird::get(ctx)
+    poise::builtins::register_globally(ctx, &framework.options().commands).await?;    let songbird = songbird::get(ctx)
         .await
         .ok_or_else(|| anyhow!("Songbird was not registered during setup"))?;
 
-    let manager = SessionManager::new(songbird, database);
+    let manager = SessionManager::new(songbird, storage);
 
     #[cfg(feature = "stats")]
-    let stats = StatsManager::new(spoticord_config::kv_url())?;
+    let stats = StatsManager::new();
 
     tokio::spawn(background_loop(
         manager.clone(),
@@ -122,9 +122,9 @@ async fn background_loop(
                             count += 1;
                         }
                     }
-
+                    
                     if let Err(why) = stats_manager.set_active_count(count) {
-                        error!("Failed to update active sessions: {why}");
+                        error!("Failed to update active sessions: {why:?}");
                     } else {
                         debug!("Active session count set to: {count}");
                     }

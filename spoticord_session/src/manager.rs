@@ -2,7 +2,7 @@ use super::{Session, SessionHandle};
 use crate::error::Result;
 use serenity::all::{ChannelId, GuildId, UserId};
 use songbird::Songbird;
-use spoticord_database::Database;
+use spoticord_storage::Storage;
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
@@ -11,7 +11,7 @@ use std::{
 #[derive(Clone)]
 pub struct SessionManager {
     songbird: Arc<Songbird>,
-    database: Database,
+    storage: Storage,
 
     sessions: Arc<Mutex<HashMap<GuildId, SessionHandle>>>,
     owners: Arc<Mutex<HashMap<UserId, SessionHandle>>>,
@@ -23,10 +23,10 @@ pub enum SessionQuery {
 }
 
 impl SessionManager {
-    pub fn new(songbird: Arc<Songbird>, database: Database) -> Self {
+    pub fn new(songbird: Arc<Songbird>, storage: Storage) -> Self {
         Self {
             songbird,
-            database,
+            storage,
 
             sessions: Arc::new(Mutex::new(HashMap::new())),
             owners: Arc::new(Mutex::new(HashMap::new())),
@@ -117,9 +117,7 @@ impl SessionManager {
 
     pub fn songbird(&self) -> Arc<Songbird> {
         self.songbird.clone()
-    }
-
-    pub fn database(&self) -> Database {
-        self.database.clone()
+    }    pub fn storage(&self) -> Storage {
+        self.storage.clone()
     }
 }

@@ -23,16 +23,24 @@ pub fn discord_intents() -> GatewayIntents {
     GatewayIntents::GUILDS | GatewayIntents::GUILD_VOICE_STATES
 }
 
-pub fn database_url() -> &'static str {
-    &env::DATABASE_URL
+pub fn base_url() -> &'static str {
+    &env::BASE_URL
 }
 
-pub fn link_url() -> &'static str {
-    &env::LINK_URL
+pub fn web_port() -> u16 {
+    *env::WEB_PORT
 }
 
-pub fn kv_url() -> &'static str {
-    &env::KV_URL
+pub fn data_dir() -> &'static str {
+    &env::DATA_DIR
+}
+
+pub fn spotify_client_id() -> &'static str {
+    &env::SPOTIFY_CLIENT_ID
+}
+
+pub fn spotify_client_secret() -> &'static str {
+    &env::SPOTIFY_CLIENT_SECRET
 }
 
 pub fn get_spotify(token: Token) -> AuthCodeSpotify {

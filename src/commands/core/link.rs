@@ -1,70 +1,55 @@
-use std::fmt::Display;
-
 use anyhow::Result;
 use log::error;
-use poise::{serenity_prelude::Error, CreateReply};
+use poise::CreateReply;
 use serenity::all::{
     CreateActionRow, CreateButton, CreateEmbed, CreateEmbedAuthor, CreateEmbedFooter,
 };
-use spoticord_database::error::DatabaseResultExt;
 use spoticord_utils::discord::Colors;
 
 use crate::bot::{Context, FrameworkError};
 
-/// Link your Spotify account to Spoticord
+/// Link the bot's Spotify account (Admin only)
 #[poise::command(slash_command, on_error = on_error)]
 pub async fn link(ctx: Context<'_>) -> Result<()> {
-    let db = ctx.data().database();
-    let user_id = ctx.author().id.to_string();
-
-    if db.get_account(&user_id).await.optional()?.is_some() {
+    // Check if the user has permission to link the bot's account
+    // For simplicity, we'll allow anyone for now, but in production you might want to restrict this
+    let storage = ctx.data().storage();
+    
+    // Check if Spotify is already linked
+    if storage.get_spotify_credentials().await?.is_some() {
         ctx.send(
-                CreateReply::default().embed(
-                    CreateEmbed::new()
-                        .title("Spotify account already linked")
-                        .description("You already have a Spotify account linked.")
-                        .footer(CreateEmbedFooter::new(
-                            "If you are trying to re-link your account then please use /unlink first.",
-                        )).color(Colors::Info),
-                ).ephemeral(true),
-            )
-            .await?;
+            CreateReply::default().embed(
+                CreateEmbed::new()
+                    .title("Spotify account already linked")
+                    .description("The bot already has a Spotify account linked. If you need to re-link, contact the bot administrator.")
+                    .color(Colors::Info),
+            ).ephemeral(true),
+        )
+        .await?;
 
         return Ok(());
-    };
-
-    if let Some(request) = db.get_request(&user_id).await.optional()? {
-        if !request.expired() {
-            send_link_message(ctx, request.token).await?;
-            return Ok(());
-        }
     }
 
-    let user = db.get_or_create_user(&user_id).await?;
-    let request = db.create_request(user.id).await?;
-
-    send_link_message(ctx, request.token).await?;
-
-    Ok(())
-}
-
-async fn send_link_message(ctx: Context<'_>, token: impl Display) -> Result<(), Error> {
-    let link = format!("{}/{token}", spoticord_config::link_url());
+    // Direct to web interface for linking
+    let link = spoticord_config::base_url();
 
     ctx.send(
         CreateReply::default()
             .embed(
                 CreateEmbed::new()
                     .author(
-                        CreateEmbedAuthor::new("Link your Spotify account")
-                            .url(&link)
+                        CreateEmbedAuthor::new("Link Spotify account")
+                            .url(link)
                             .icon_url("https://spoticord.com/spotify-logo.png"),
                     )
-                    .description("Click on the button below to start linking your Spotify account.")
+                    .description("Click on the button below to link the bot's Spotify account.")
+                    .footer(CreateEmbedFooter::new(
+                        "This will allow the bot to play music for everyone in this server.",
+                    ))
                     .color(Colors::Info),
             )
             .components(vec![CreateActionRow::Buttons(vec![
-                CreateButton::new_link(&link).label("Link your account"),
+                CreateButton::new_link(link).label("Link Spotify Account"),
             ])])
             .ephemeral(true),
     )

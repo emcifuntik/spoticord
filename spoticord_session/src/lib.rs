@@ -3,13 +3,12 @@ pub mod lyrics_embed;
 pub mod manager;
 pub mod playback_embed;
 
-use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use error::Error;
 use error::Result;
 use librespot::{
     core::connection,
     discovery::Credentials,
-    protocol::{authentication::AuthenticationType, keyexchange::ErrorCode},
+    protocol::keyexchange::ErrorCode,
 };
 use log::{debug, error, trace};
 use lyrics_embed::LyricsEmbed;
@@ -106,42 +105,16 @@ impl Session {
         // This uses separate channels as to not cause a cyclic dependency
         let (inner_tx, inner_rx) = mpsc::channel(16);
 
-        // Grab user credentials and info before joining call
-        let account = session_manager
-            .database()
-            .get_account(owner.to_string())
-            .await?;
-
-        // Get user preferences
-        let device_name = session_manager
-            .database()
-            .get_user(owner.to_string())
+        // Grab user credentials and info before joining call        // With centralized Spotify account, we no longer need per-user accounts
+        // Just get the centralized token from storage
+        let access_token = session_manager
+            .storage()
+            .get_spotify_token()
             .await?
-            .device_name;
+            .ok_or_else(|| Error::Other("No Spotify account linked to bot".into()))?;
 
-        let credentials = match account
-            .session_token
-            .and_then(|val| BASE64.decode(&val).ok())
-        {
-            Some(token) => Credentials {
-                username: Some(account.username),
-                auth_type: AuthenticationType::AUTHENTICATION_STORED_SPOTIFY_CREDENTIALS,
-                auth_data: token,
-            },
-            None => {
-                let access_token = session_manager
-                    .database()
-                    .get_access_token(&account.user_id)
-                    .await?;
-
-                Credentials::with_access_token(access_token)
-            }
-        };
-
-        let credentials_cached = matches!(
-            credentials.auth_type,
-            AuthenticationType::AUTHENTICATION_STORED_SPOTIFY_CREDENTIALS
-        );
+        // Use a default device name for the bot
+        let device_name = "Spoticord Bot".to_string();        let credentials = Credentials::with_access_token(access_token);
 
         // Hello Discord I'm here
         let call = session_manager
@@ -161,7 +134,7 @@ impl Session {
             call.add_global_event(Event::Core(CoreEvent::ClientDisconnect), handle.clone());
         }
 
-        let (player, events, auth_data) =
+        let (player, events, _auth_data) =
             match Player::create(credentials, call.clone(), device_name).await {
                 Ok(player) => player,
                 Err(why) => {
@@ -174,36 +147,14 @@ impl Session {
                         ErrorCode::BadCredentials,
                     )) = why.error.downcast_ref::<connection::AuthenticationError>()
                     {
-                        // Authentication failed, clear tokens in database (depending on which type of auth failed)
-
-                        if credentials_cached {
-                            session_manager
-                                .database()
-                                .update_session_token(owner.to_string(), None)
-                                .await
-                                .ok();
-                        } else {
-                            session_manager
-                                .database()
-                                .delete_account(owner.to_string())
-                                .await
-                                .ok();
-                        }
-
+                        // Authentication failed with centralized credentials
+                        error!("Spotify authentication failed - bot credentials may be invalid");
                         return Err(AuthenticationFailed);
-                    }
-
-                    return Err(why.into());
+                    }                    return Err(why.into());
                 }
             };
 
-        // Store reusable credentials in DB
-        // We don't care if this fails, we'll just fall back on token login
-        session_manager
-            .database()
-            .update_session_token(owner.to_string(), Some(BASE64.encode(auth_data)))
-            .await
-            .ok();
+        // No need to store credentials since they're centralized
 
         let mut session = Self {
             session_manager,
@@ -408,54 +359,26 @@ impl Session {
         if let Some(tx) = self.timeout_tx.take() {
             _ = tx.send(());
         }
-    }
-
-    async fn reactivate(&mut self, new_owner: UserId) -> Result<()> {
+    }    async fn reactivate(&mut self, new_owner: UserId) -> Result<()> {
         use Error::*;
-
-        let user_id = &*new_owner.to_string();
 
         if self.active {
             return Err(AlreadyActive);
         }
 
-        // Grab user credentials and info before joining call
-        let account = self.session_manager.database().get_account(user_id).await?;
-
-        // Get user preferences
-        let device_name = self
+        // With centralized Spotify account, we no longer need per-user accounts
+        // Just get the centralized token from storage
+        let access_token = self
             .session_manager
-            .database()
-            .get_user(user_id)
+            .storage()
+            .get_spotify_token()
             .await?
-            .device_name;
+            .ok_or_else(|| Error::Other("No Spotify account linked to bot".into()))?;
 
-        let credentials = match account
-            .session_token
-            .and_then(|val| BASE64.decode(val).ok())
-        {
-            Some(token) => Credentials {
-                username: Some(account.username),
-                auth_type: AuthenticationType::AUTHENTICATION_STORED_SPOTIFY_CREDENTIALS,
-                auth_data: token,
-            },
-            None => {
-                let access_token = self
-                    .session_manager
-                    .database()
-                    .get_access_token(&account.user_id)
-                    .await?;
+        // Use a default device name for the bot
+        let device_name = "Spoticord Bot".to_string();
 
-                Credentials::with_access_token(access_token)
-            }
-        };
-
-        let credentials_cached = matches!(
-            credentials.auth_type,
-            AuthenticationType::AUTHENTICATION_STORED_SPOTIFY_CREDENTIALS
-        );
-
-        let (player, player_events, auth_data) =
+        let credentials = Credentials::with_access_token(access_token);        let (player, player_events, _auth_data) =
             match Player::create(credentials, self.call.clone(), device_name).await {
                 Ok(player) => player,
                 Err(why) => {
@@ -463,34 +386,16 @@ impl Session {
                         ErrorCode::BadCredentials,
                     )) = why.error.downcast_ref::<connection::AuthenticationError>()
                     {
-                        // Authentication failed, clear tokens in database (depending on which type of auth failed)
-
-                        if credentials_cached {
-                            self.session_manager
-                                .database()
-                                .update_session_token(user_id, None)
-                                .await
-                                .ok();
-                        } else {
-                            self.session_manager
-                                .database()
-                                .delete_account(user_id)
-                                .await
-                                .ok();
-                        }
+                        // Authentication failed with centralized credentials
+                        // Log the error but don't clear anything since it's not user-specific
+                        error!("Spotify authentication failed - bot credentials may be invalid");
                     }
 
                     return Err(why.into());
                 }
             };
 
-        // Store reusable credentials in DB
-        // We don't care if this fails, we'll just fall back on token login
-        self.session_manager
-            .database()
-            .update_session_token(user_id, Some(BASE64.encode(auth_data)))
-            .await
-            .ok();
+        // No need to store credentials since they're centralized
 
         self.owner = new_owner;
         self.player = player;

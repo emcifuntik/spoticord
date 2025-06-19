@@ -17,13 +17,15 @@ Spoticord uses environment variables to configure itself. The following variable
 - `DISCORD_TOKEN`: The Discord bot token used for authenticating with Discord.
 - `DATABASE_URL`: The URL of the postgres database where spoticord will store user data. Currently only postgresql databases are supported.
 - `LINK_URL`: The base URL of the account-linking frontend used for authenticating users with Spotify. This base URL must point to an instance of [the Spoticord Link frontend](https://github.com/SpoticordMusic/spoticord-link).
-- `SPOTIFY_CLIENT_ID`: The Spotify Client ID for the Spotify application that is used for Spoticord. This will be used for refreshing tokens.
-- `SPOTIFY_CLIENT_SECRET`: The Spotify Client Secret for the Spotify application that is used for Spoticord. This will be used for refreshing tokens.
+- `SPOTIFY_CLIENT_ID`: The Spotify Client ID for the Spotify application that is used for Spoticord. This will be used for OAuth authentication.
+- `SPOTIFY_CLIENT_SECRET`: The Spotify Client Secret for the Spotify application that is used for Spoticord. This will be used for OAuth authentication.
+- `BASE_URL`: The base URL where the web server will be accessible (e.g., `http://localhost:8080`). Used for OAuth callbacks.
+- `WEB_PORT`: The port where the web server will listen (default: 8080).
+- `DATA_DIR`: The directory where credentials and other data will be stored (default: `./data`).
 
 Additionally you can configure the following variables:
 
 - `GUILD_ID`: The ID of the Discord server where this bot will create commands for. This is used during testing to prevent the bot from creating slash commands in other servers, as well as generally being faster than global command propagation. This variable is required when running a debug build, and ignored when running a release build.
-- `KV_URL`: The connection URL of a redis-server instance used for storing realtime data. This variable is required when compiling with the `stats` feature.
 
 #### Providing environment variables
 

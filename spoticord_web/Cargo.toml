@@ -1,0 +1,21 @@
+[package]
+name = "spoticord_web"
+version.workspace = true
+edition = "2021"
+
+[dependencies]
+spoticord_config = { path = "../spoticord_config" }
+spoticord_storage = { path = "../spoticord_storage" }
+
+axum = "0.7"
+tokio = { version = "1.0", features = ["full"] }
+anyhow = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+url = "2.0"
+reqwest = { version = "0.12", features = ["json"] }
+rspotify = { version = "0.13.3", default-features = false, features = [
+    "client-reqwest", 
+    "reqwest-rustls-tls",
+] }
+chrono = { version = "0.4", features = ["serde"] }
+log = "0.4"

@@ -12,7 +12,8 @@ path = "src/main.rs"
 members = [
     "spoticord_audio",
     "spoticord_config",
-    "spoticord_database",
+    "spoticord_storage",
+    "spoticord_web",
     "spoticord_player",
     "spoticord_session",
     "spoticord_utils",
@@ -25,7 +26,8 @@ stats = ["spoticord_stats"]
 
 [dependencies]
 spoticord_config = { path = "./spoticord_config" }
-spoticord_database = { path = "./spoticord_database" }
+spoticord_storage = { path = "./spoticord_storage" }
+spoticord_web = { path = "./spoticord_web" }
 spoticord_player = { path = "./spoticord_player" }
 spoticord_session = { path = "./spoticord_session" }
 spoticord_utils = { path = "./spoticord_utils" }
@@ -33,6 +35,7 @@ spoticord_stats = { path = "./spoticord_stats", optional = true }
 
 librespot = { git = "https://github.com/SpoticordMusic/librespot.git", default-features = false }
 anyhow = "1.0.93"
+chrono = { version = "0.4", features = ["serde"] }
 dotenvy = "0.15.7"
 env_logger = "0.11.5"
 log = "0.4.22"
@@ -41,6 +44,10 @@ serenity = "0.12.2"
 songbird = { version = "0.4.4", features = ["simd-json"] }
 tokio = { version = "1.41.1", features = ["full"] }
 rustls = { version = "0.23.16", features = ["aws-lc-rs"] }
+rspotify = { version = "0.13.3", default-features = false, features = [
+    "client-reqwest",
+    "reqwest-rustls-tls",
+] }
 
 [profile.release]
 opt-level = 3

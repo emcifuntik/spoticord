@@ -5,7 +5,8 @@ use log::{error, info};
 use poise::Framework;
 use serenity::all::ClientBuilder;
 use songbird::SerenityInit;
-use spoticord_database::Database;
+use spoticord_storage::Storage;
+use spoticord_web::WebServer;
 
 #[tokio::main]
 async fn main() {
@@ -30,18 +31,29 @@ async fn main() {
 
     dotenvy::dotenv().ok();
 
-    // Set up database
-    let database = match Database::connect().await {
-        Ok(db) => db,
-        Err(why) => {
-            error!("Failed to connect to database and perform migrations: {why}");
-            return;
+    // Set up storage
+    let storage = Storage::new(spoticord_config::data_dir());
+    if let Err(why) = storage.init().await {
+        error!("Failed to initialize storage: {why}");
+        return;
+    }
+
+    // Start web server for OAuth
+    let web_server = WebServer::new(storage.clone());
+    let web_port = spoticord_config::web_port();
+    
+    tokio::spawn(async move {
+        if let Err(why) = web_server.start(web_port).await {
+            error!("Web server error: {why}");
         }
-    };
+    });
+
+    info!("Web server starting on port {}", web_port);
+    info!("Visit {} to set up Spotify authentication", spoticord_config::base_url());
 
     // Set up bot
     let framework = Framework::builder()
-        .setup(|ctx, ready, framework| Box::pin(bot::setup(ctx, ready, framework, database)))
+        .setup(|ctx, ready, framework| Box::pin(bot::setup(ctx, ready, framework, storage)))
         .options(bot::framework_opts())
         .build();
 
